@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Koniki</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+/* Layout: one-screen game table — title, 3x2 card grid, big tap hint */
+:root{
+  --bg:#eef4ff; --bg2:#fbe9f4; --fg:#2a2550; --muted:#6b6596;
+  --back1:#5b4bd6; --back2:#8e7ff0; --face:#fffdf7; --edge:#d9d3f7;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161433; --bg2:#2a1736; --fg:#f1eeff; --muted:#a9a3d6;
+  --back1:#4a3cc4; --back2:#7c6be6; --face:#2a2752; --edge:#3e3a72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#161433; --bg2:#2a1736; --fg:#f1eeff; --muted:#a9a3d6;
+  --back1:#4a3cc4; --back2:#7c6be6; --face:#2a2752; --edge:#3e3a72; color-scheme:dark}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,var(--bg2),var(--bg) 60%);background-color:var(--bg);color:var(--fg);
+  font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+main{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:14px;position:relative}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(2.2rem,8vw,3rem);margin:40px 0 0;text-align:center;letter-spacing:.02em}
+h1 span{color:var(--back2)}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:12px;perspective:900px;position:relative}
+.card{aspect-ratio:3/4;max-width:100%;position:relative;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.3,1.4,.5,1)}
+.card.down{transform:rotateY(180deg)}
+.side{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 6px 16px rgb(40 30 110 / .18)}
+.front{background:var(--face);border:2px solid var(--edge);gap:2px;padding:6px;box-sizing:border-box}
+.front svg{width:92%;height:auto}
+.front b{font-family:var(--display);font-weight:500;font-size:clamp(.8rem,3.6vw,1.05rem)}
+.back{transform:rotateY(180deg);border:3px solid var(--face);
+  background:
+    radial-gradient(circle at 50% 50%,rgb(255 255 255 / .35) 0 14%,transparent 15%),
+    repeating-conic-gradient(var(--back1) 0 15deg,var(--back2) 15deg 30deg)}
+.back::after{content:"★";font-size:2rem;color:#fff;text-shadow:0 2px 6px rgb(0 0 0 / .3)}
+.card.win .front{border-color:var(--c);box-shadow:0 0 0 4px var(--c),0 10px 26px rgb(40 30 110 / .3)}
+.card.win{z-index:2}
+.card.win.pop{animation:pop .6s ease-out}
+@keyframes pop{50%{transform:scale(1.12)}}
+.card.gather{transition:transform .4s ease-in;transform:translate(var(--dx),var(--dy)) rotateY(180deg) rotate(var(--r)) scale(.85)}
+.card.deal{animation:deal .5s cubic-bezier(.2,.9,.3,1.1) both;animation-delay:var(--d)}
+@keyframes deal{
+  from{transform:translate(var(--dx),var(--dy)) rotateY(180deg) rotate(var(--r)) scale(.85)}
+  to{transform:rotateY(180deg)}}
+.card.ready{cursor:pointer}
+.card.down.ready:hover{transform:rotateY(180deg) translateY(-4px)}
+.hint{text-align:center;font-family:var(--display);font-size:1.2rem;color:var(--muted);margin:4px 0 0;min-height:1.5em}
+.hint strong{color:var(--fg)}
+button{align-self:center;font:700 1.15rem var(--display);color:#fff;background:var(--back1);border:0;border-radius:999px;padding:14px 34px;
+  box-shadow:0 5px 0 #2f2591;cursor:pointer}
+button:active{transform:translateY(3px);box-shadow:0 2px 0 #2f2591}
+button:focus-visible{outline:3px solid var(--back2);outline-offset:3px}
+.gear{position:absolute;top:0;right:0;align-self:auto;padding:10px 14px;font-size:1rem;background:var(--face);color:var(--fg);box-shadow:0 3px 0 var(--edge);border:2px solid var(--edge)}
+.gear:active{box-shadow:0 1px 0 var(--edge)}
+.overlay{position:fixed;inset:0;background:rgb(20 15 60 / .45);display:flex;align-items:center;justify-content:center;z-index:20;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.panel{background:var(--face);color:var(--fg);border-radius:20px;padding:20px;width:100%;max-width:380px;max-height:100%;overflow:auto;
+  box-shadow:0 20px 50px rgb(20 15 60 / .35);display:flex;flex-direction:column;gap:12px;cursor:default;user-select:text}
+.panel h2{font-family:var(--display);margin:0;font-size:1.5rem}
+.panel p{margin:0;color:var(--muted)}
+.names{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row i{width:22px;height:22px;border-radius:50%;flex:none;border:2px solid rgb(0 0 0 / .12)}
+.row input{flex:1;min-width:0;font:600 1rem var(--body);padding:10px 12px;border-radius:10px;border:2px solid var(--edge);background:var(--bg);color:var(--fg)}
+.row input:focus{outline:none;border-color:var(--back2)}
+.row button,.small{padding:8px 12px;font-size:.95rem;box-shadow:none;background:var(--edge);color:var(--fg)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.actions button{padding:12px 22px;font-size:1rem}
+.small:disabled{opacity:.4;cursor:default}
+@media (prefers-reduced-motion:reduce){.card,.card.gather{transition:none}.card.deal,.card.win.pop{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <button class="gear" id="gear" type="button" aria-label="Ustawienia">⚙ Ustawienia</button>
+  <h1>Kon<span>i</span>ki</h1>
+  <div class="grid" id="grid"></div>
+  <p class="hint" id="hint">Poznaj koniki! Naciśnij „Rozdaj”.</p>
+  <button id="btn" type="button">Rozdaj</button>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="panel" id="form">
+    <h2>Ustawienia</h2>
+    <p>Wpisz imiona koników (od 1 do 10).</p>
+    <div class="names" id="names"></div>
+    <button class="small" id="add" type="button">+ Dodaj imię</button>
+    <div class="actions">
+      <button class="small" id="reset" type="button">Domyślne</button>
+      <button id="save" type="submit">Zapisz</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const LOOKS=[
+  {body:"#ffd166", mane:"#ef476f", mark:"spark"},
+  {body:"#cfe8ff", mane:"#5e7ce2", mark:"cloud"},
+  {body:"#f4f1ff", mane:"#3fb98a", mark:"flower"},
+  {body:"#e9a46a", mane:"#7a3e1d", mark:"drop"},
+  {body:"#b8a3f0", mane:"#3b2a8a", mark:"berry"},
+  {body:"#a8e6cf", mane:"#ff8c42", mark:"swirl"},
+  {body:"#ffc2d4", mane:"#c2185b", mark:"heart"},
+  {body:"#fff3b0", mane:"#2a9d8f", mark:"moon"},
+  {body:"#d7c4a3", mane:"#264653", mark:"leaf"},
+  {body:"#c8f7ff", mane:"#7b2cbf", mark:"note"}
+];
+const DEFAULT_NAMES=["Natalia","Aneta","Marianna","Adela","Laura","Nina"];
+const MAX=10;
+let names=DEFAULT_NAMES.slice();
+try{const saved=JSON.parse(localStorage.getItem('koniki-names')||'null'); if(Array.isArray(saved)&&saved.length) names=saved.slice(0,MAX);}catch(e){}
+let PONIES=[];
+function buildPonies(){PONIES=names.map((n,i)=>({name:n,...LOOKS[i%LOOKS.length]}));}
+const MARKS={
+  spark:'<path d="M0-7 2-2 7 0 2 2 0 7-2 2-7 0-2-2Z" fill="#fff6a8" stroke="#c98a00" stroke-width=".8"/>',
+  cloud:'<path d="M-6 2a3 3 0 0 1 1-6 4 4 0 0 1 7-1 3 3 0 0 1 4 4 2.5 2.5 0 0 1-1 3Z" fill="#fff" stroke="#5e7ce2" stroke-width=".8"/>',
+  flower:'<g fill="#fff" stroke="#3fb98a" stroke-width=".7"><circle cx="0" cy="-4" r="2.6"/><circle cx="3.8" cy="-1" r="2.6"/><circle cx="2.4" cy="3.4" r="2.6"/><circle cx="-2.4" cy="3.4" r="2.6"/><circle cx="-3.8" cy="-1" r="2.6"/></g><circle r="1.8" fill="#ffd166"/>',
+  drop:'<path d="M0-7C3-2 5 0 5 3a5 5 0 0 1-10 0c0-3 2-5 5-10Z" fill="#ffcf6b" stroke="#7a3e1d" stroke-width=".8"/>',
+  berry:'<g fill="#3b2a8a"><circle cx="-2.5" cy="1" r="3"/><circle cx="2.5" cy="1" r="3"/><circle cx="0" cy="-3" r="3"/></g><path d="M0-6 2-8" stroke="#3fb98a" stroke-width="1.4"/>',
+  heart:'<path d="M0 6C-7 1-7-5-3.5-5.5-1.5-5.8 0-4 0-3 0-4 1.5-5.8 3.5-5.5 7-5 7 1 0 6Z" fill="#ff5c8a" stroke="#c2185b" stroke-width=".8"/>',
+  moon:'<path d="M2-6A6 6 0 1 0 6 2 4.5 4.5 0 1 1 2-6Z" fill="#fff6c2" stroke="#2a9d8f" stroke-width=".8"/>',
+  leaf:'<path d="M-5 5C-6-3 0-7 6-6 6 1 1 6-5 5Z" fill="#7cc576" stroke="#264653" stroke-width=".8"/><path d="M-5 5 3-3" stroke="#264653" stroke-width=".7"/>',
+  note:'<path d="M-2 4V-5L5-6V3" fill="none" stroke="#7b2cbf" stroke-width="1.4"/><circle cx="-3.5" cy="4" r="2.2" fill="#7b2cbf"/><circle cx="3.5" cy="3" r="2.2" fill="#7b2cbf"/>',
+  swirl:'<path d="M0 0a2 2 0 1 1 3 2 4 4 0 1 1-7-3 6 6 0 0 1 10 2" fill="none" stroke="#ff8c42" stroke-width="1.6" stroke-linecap="round"/>'
+};
+function ponySVG(p){
+  return `<svg viewBox="0 0 120 110" aria-hidden="true">
+  <path d="M30 58c-14 2-22 14-20 30 8-4 12-14 22-20" fill="${p.mane}"/>
+  <g fill="${p.body}" stroke="rgb(0 0 0 / .18)" stroke-width="1.2">
+    <rect x="38" y="70" width="9" height="28" rx="4"/><rect x="72" y="70" width="9" height="28" rx="4"/>
+    <ellipse cx="58" cy="66" rx="30" ry="18"/>
+    <rect x="48" y="72" width="9" height="28" rx="4"/><rect x="82" y="72" width="9" height="28" rx="4"/>
+    <path d="M74 56 80 34 96 38 92 62Z"/>
+    <ellipse cx="94" cy="32" rx="16" ry="14"/>
+    <path d="M86 20 88 8 95 18Z"/>
+  </g>
+  <ellipse cx="106" cy="38" rx="7" ry="6" fill="${p.body}" stroke="rgb(0 0 0 / .18)" stroke-width="1.2"/>
+  <path d="M84 18c-10 0-16 10-12 22 2 8-2 16 4 22 0-10 4-14 8-20-2-8 2-14 6-18 6 2 10 0 12-4-6-4-12-4-18-2Z" fill="${p.mane}"/>
+  <ellipse cx="97" cy="30" rx="3.6" ry="4.4" fill="#2a2550"/><circle cx="98.2" cy="28.6" r="1.3" fill="#fff"/>
+  <circle cx="108" cy="37" r="1" fill="#2a2550"/>
+  <path d="M103 44q3 2 6 0" stroke="#2a2550" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <circle cx="100" cy="40" r="3" fill="#ff8fab" opacity=".45"/>
+  <g transform="translate(46 64)">${MARKS[p.mark]}</g>
+  <g fill="#2a2550" opacity=".55"><rect x="38" y="95" width="9" height="4" rx="2"/><rect x="48" y="97" width="9" height="4" rx="2"/><rect x="72" y="95" width="9" height="4" rx="2"/><rect x="82" y="97" width="9" height="4" rx="2"/></g>
+</svg>`;
+}
+
+const grid=document.getElementById('grid'), hint=document.getElementById('hint'), btn=document.getElementById('btn');
+let cards=[];
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function setFace(card,p){
+  card.querySelector('.front').innerHTML=ponySVG(p)+`<b>${esc(p.name)}</b>`;
+  card.style.setProperty('--c',p.mane);
+}
+function buildTable(){
+  buildPonies();
+  grid.innerHTML=''; cards=[];
+  const n=PONIES.length;
+  grid.style.setProperty('--cols', n<=4?2 : n<=6?3 : n<=8?4 : 5);
+  PONIES.forEach(p=>{
+    const c=document.createElement('div');
+    c.className='card';
+    c.innerHTML='<div class="side front"></div><div class="side back"></div>';
+    c.addEventListener('click',()=>flip(c));
+    grid.appendChild(c); cards.push(c); setFace(c,p);
+  });
+  flipped=0;
+  hint.textContent='Poznaj koniki! Naciśnij „Rozdaj”.';
+  btn.textContent='Rozdaj';
+}
+
+let dealing=false, flipped=0;
+const rnd=n=>Math.floor(Math.random()*n);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+function deckOffsets(){
+  // pozycja talii: na środku pod siatką
+  const g=grid.getBoundingClientRect();
+  const tx=g.left+g.width/2, ty=g.bottom+40;
+  cards.forEach(c=>{
+    const r=c.getBoundingClientRect();
+    c.style.setProperty('--dx',(tx-(r.left+r.width/2))+'px');
+    c.style.setProperty('--dy',(ty-(r.top+r.height/2))+'px');
+    c.style.setProperty('--r',(rnd(16)-8)+'deg');
+  });
+}
+
+async function deal(){
+  if(dealing) return;
+  dealing=true; flipped=0;
+  btn.disabled=true;
+  hint.textContent='Rozdaję karty…';
+  cards.forEach(c=>c.classList.remove('win','pop','ready','deal'));
+  cards.forEach(c=>c.classList.add('down'));
+  await wait(450);
+  deckOffsets();
+  cards.forEach(c=>c.classList.add('gather'));
+  await wait(450);
+  // tasowanie: każdy konik trafia na losową kartę
+  const order=[...PONIES].sort(()=>Math.random()-.5);
+  cards.forEach((c,i)=>{c.pony=order[i];setFace(c,order[i]);});
+  cards.forEach((c,i)=>{
+    c.style.setProperty('--d',(i*0.15)+'s');
+    c.classList.remove('gather');
+    c.classList.add('deal');
+  });
+  await wait((cards.length-1)*150+520);
+  cards.forEach(c=>{c.classList.remove('deal');c.classList.add('ready');});
+  hint.innerHTML='<strong>Kliknij kartę</strong>, żeby ją odwrócić!';
+  btn.textContent='Rozdaj od nowa';
+  btn.disabled=false;
+  dealing=false;
+}
+
+function flip(card){
+  if(dealing || !card.classList.contains('ready')) return;
+  const p=card.pony;
+  if(card.classList.contains('down')){
+    card.classList.remove('down');
+    card.classList.add('win');
+    setTimeout(()=>{ if(!card.classList.contains('down')) card.classList.add('pop'); },450);
+    flipped++;
+    hint.innerHTML = flipped===cards.length
+      ? 'Wszystkie koniki odkryte! Kliknij kartę, żeby ją zakryć.'
+      : `To <strong style="color:${p.mane}">${esc(p.name)}</strong>! Kliknij ją jeszcze raz, żeby zakryć.`;
+  } else {
+    card.classList.remove('win','pop');
+    card.classList.add('down');
+    flipped--;
+    hint.innerHTML = '<strong>Kliknij kartę</strong>, żeby ją odwrócić!';
+  }
+}
+
+btn.addEventListener('click',deal);
+buildTable();
+
+// Ustawienia
+const overlay=document.getElementById('overlay'), list=document.getElementById('names'),
+      addBtn=document.getElementById('add'), form=document.getElementById('form');
+function addRow(val){
+  const i=list.children.length;
+  const row=document.createElement('div'); row.className='row';
+  row.innerHTML=`<i style="background:${LOOKS[i%LOOKS.length].mane}"></i><input id="name-${i}" maxlength="16" placeholder="Imię" aria-label="Imię ${i+1}"><button type="button" aria-label="Usuń">✕</button>`;
+  row.querySelector('input').value=val;
+  row.querySelector('button').onclick=()=>{ if(list.children.length>1){row.remove();refreshRows();} };
+  list.appendChild(row); refreshRows();
+}
+function refreshRows(){
+  [...list.children].forEach((r,i)=>{r.querySelector('i').style.background=LOOKS[i%LOOKS.length].mane;r.querySelector('input').id='name-'+i;});
+  addBtn.disabled=list.children.length>=MAX;
+  addBtn.textContent=list.children.length>=MAX?'Maksymalnie 10 imion':'+ Dodaj imię';
+}
+function fill(arr){list.innerHTML='';arr.forEach(addRow);}
+document.getElementById('gear').onclick=()=>{ if(dealing) return; fill(names); overlay.hidden=false; };
+addBtn.onclick=()=>{ if(list.children.length<MAX){addRow('');list.lastChild.querySelector('input').focus();} };
+document.getElementById('reset').onclick=()=>fill(DEFAULT_NAMES);
+overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.hidden=true; });
+form.addEventListener('submit',e=>{
+  e.preventDefault();
+  const v=[...list.querySelectorAll('input')].map(x=>x.value.trim()).filter(Boolean).slice(0,MAX);
+  names=v.length?v:DEFAULT_NAMES.slice();
+  try{localStorage.setItem('koniki-names',JSON.stringify(names));}catch(e){}
+  overlay.hidden=true;
+  buildTable();
+});
+</script>
+</body>
+</html>
